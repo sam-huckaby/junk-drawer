@@ -23,6 +23,8 @@ export type SliderProps = {
   "aria-label"?: string;
   "aria-labelledby"?: string;
   marks?: Array<{ value: number; label?: string }>;
+  error?: string | null;
+  description?: string | null;
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -62,6 +64,8 @@ export function Slider({
   id,
   name,
   marks,
+  error = null,
+  description = null,
   ...aria
 }: SliderProps) {
   const [uncontrolledValue, setUncontrolledValue] = useState<number>(() => {
@@ -234,17 +238,19 @@ export function Slider({
       .join(" ");
   }, [className, orientation]);
 
+  const isInvalid = Boolean(error);
+
   const trackClasses = useMemo(() => {
     return [
       "absolute left-0 top-1/2 -translate-y-1/2",
       orientation === "horizontal" ? "h-2 w-full" : "w-2 h-full left-1/2 -translate-x-1/2 top-0 translate-y-0",
-      "rounded-full bg-neutral-200 dark:bg-neutral-700",
+      isInvalid ? "rounded-full bg-red-200/70 dark:bg-red-900/40" : "rounded-full bg-neutral-200 dark:bg-neutral-700",
       disabled ? "opacity-50" : null,
       trackClassName,
     ]
       .filter(Boolean)
       .join(" ");
-  }, [disabled, orientation, trackClassName]);
+  }, [disabled, orientation, trackClassName, isInvalid]);
 
   const rangeStyles: React.CSSProperties = useMemo(() => {
     if (orientation === "horizontal") {
@@ -257,12 +263,12 @@ export function Slider({
     return [
       "absolute left-0 top-0",
       orientation === "horizontal" ? "h-full" : "w-full bottom-0 top-auto",
-      "rounded-full bg-blue-600",
+      isInvalid ? "rounded-full bg-red-600" : "rounded-full bg-blue-600",
       rangeClassName,
     ]
       .filter(Boolean)
       .join(" ");
-  }, [orientation, rangeClassName]);
+  }, [orientation, rangeClassName, isInvalid]);
 
   const thumbStyles: React.CSSProperties = useMemo(() => {
     if (orientation === "horizontal") {
@@ -275,14 +281,14 @@ export function Slider({
     return [
       "absolute z-10",
       orientation === "horizontal" ? "top-1/2 -translate-y-1/2 -translate-x-1/2" : "left-1/2 -translate-x-1/2 translate-y-1/2",
-      "h-5 w-5 rounded-full border-2 border-white bg-blue-600 shadow",
+      isInvalid ? "h-5 w-5 rounded-full border-2 border-white bg-red-600 shadow" : "h-5 w-5 rounded-full border-2 border-white bg-blue-600 shadow",
       disabled ? "cursor-not-allowed" : "cursor-grab active:cursor-grabbing",
-      "outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2",
+      isInvalid ? "outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2" : "outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2",
       thumbClassName,
     ]
       .filter(Boolean)
       .join(" ");
-  }, [disabled, orientation, thumbClassName]);
+  }, [disabled, orientation, thumbClassName, isInvalid]);
 
   const tooltip = (
     <div
@@ -330,18 +336,27 @@ export function Slider({
     );
   }, [marks, max, min, orientation]);
 
+  const descriptionId = description ? `${id ?? "slider"}-desc` : undefined;
+  const errorId = error ? `${id ?? "slider"}-err` : undefined;
+  const ariaDescribedBy = [aria["aria-describedby"], descriptionId, errorId]
+    .filter(Boolean)
+    .join(" ") || undefined;
+
   return (
-    <div
-      id={id}
-      ref={trackRef}
-      className={commonClasses}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={endDrag}
-      onLostPointerCapture={() => endDrag()}
-      role="none"
-      style={{ position: "relative" }}
+    <div className={[orientation === "horizontal" ? "w-full" : "h-full", "inline-block"].join(" ")}
     >
+      {/* Control region */}
+      <div
+        id={id}
+        ref={trackRef}
+        className={commonClasses}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onLostPointerCapture={() => endDrag()}
+        role="none"
+        style={{ position: "relative" }}
+      >
       {/* Track */}
       <div className={trackClasses} aria-hidden>
         <div className={rangeClasses} style={rangeStyles} />
@@ -359,6 +374,8 @@ export function Slider({
         aria-valuenow={currentValue}
         aria-valuetext={ariaValueText}
         aria-orientation={orientation}
+          aria-invalid={isInvalid || undefined}
+          aria-describedby={ariaDescribedBy}
         className={thumbClasses}
         style={thumbStyles}
         onKeyDown={handleKeyDown}
@@ -369,6 +386,19 @@ export function Slider({
 
       {/* Hidden input for forms */}
       {name ? <input type="hidden" name={name} value={currentValue} /> : null}
+      </div>
+
+      {/* Description / Error region */}
+      {description ? (
+        <div id={descriptionId} className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
+          {description}
+        </div>
+      ) : null}
+      {error ? (
+        <div id={errorId} className="mt-1 text-xs text-red-600">
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
